@@ -12,11 +12,14 @@ const uuid = require('react-uuid')
 const height: number = 800
 const width: number = 800
 
-const initRotation: number = 100
+const initRotation: number = 0
 
 const WorldMap = () => {
   const [geographies, setGeographies] = useState<[] | Array<Feature<Geometry | null>>>([])
-  const [rotation, setRotation] = useState<number>(initRotation)
+  const [eventStartX, setEventStartX] = useState<number>(0)
+  const [eventStartY, setEventStartY] = useState<number>(0)
+  const [rotationX, setRotationX] = useState<number>(initRotation)
+  const [rotationY, setRotationY] = useState<number>(initRotation)
   const [isRotate, setIsRotate] = useState<Boolean>(false)
 
   useEffect(() => {
@@ -33,25 +36,9 @@ const WorldMap = () => {
     })
   }, [])
 
-  geographies.forEach(d => {
-    if (d != null && d.properties != null)
-      console.log(d.properties.name)
-  })
-
   // geoEqualEarth
   // geoOrthographic
-  const projection = geoOrthographic().scale(height / 2).translate([width / 2, height / 2]).rotate([rotation, 0])
-
-  AnimationFrame(() => {
-    if (isRotate) {
-      let newRotation = rotation
-      if (rotation >= 360) {
-        newRotation = rotation - 360
-      }
-      setRotation(newRotation + 0.2)
-      // console.log(`rotation: ${  rotation}`)
-    }
-  })
+  const projection = geoOrthographic().scale(height / 2).translate([width / 2, height / 2]).rotate([rotationX, rotationY])
 
   function returnProjectionValueWhenValid(point: [number, number], index: number) {
     const retVal: [number, number] | null = projection(point)
@@ -61,17 +48,37 @@ const WorldMap = () => {
     return 0
   }
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setEventStartX(e.clientX)
+    setEventStartY(e.clientY)
+    setIsRotate(true)
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isRotate)
+      return
+    setRotationX(getNewRotation(rotationX, eventStartX - e.clientX))
+    setRotationY(getNewRotation(rotationY, e.clientY - eventStartY))
+  }
+
+  function getNewRotation(current: number, delta: number) {
+    let newRotation = current - delta / 50
+    if (newRotation >= 360)
+      return newRotation - 360
+    if (newRotation <= 0)
+      return newRotation + 360
+    return newRotation
+  }
+
   return (
     <>
-      <Button
-        size="medium"
-        color="primary"
-        startIcon={<PlayCircleFilledWhiteIcon />}
-        onClick={() => {
-          setIsRotate(true)
-        }}
-      />
-      <svg width={width} height={height}>
+      <svg
+        width={width}
+        height={height}
+        onMouseDown={handleMouseDown}
+        onMouseUp={() => setIsRotate(false)}
+        onMouseMove={handleMouseMove}
+      >
         <g>
           <circle fill="#f2f2f2" cx={width / 2} cy={height / 2} r={height / 2} />
         </g>
@@ -85,16 +92,8 @@ const WorldMap = () => {
                 fill={`rgba(38,50,56,${(1 / (geographies ? geographies.length : 0)) * i})`}
                 stroke="aliceblue"
                 strokeWidth={0.5}
-                onMouseEnter={() => setIsRotate(false)}
               />
-              <text
-                className="country-name"
-                key={`path-${uuid()}`}
-                x={geoPath().projection(projection).centroid(d)[0]}
-                y={geoPath().projection(projection).centroid(d)[1]}
-              >
-                {geographies[i].properties!.name}
-              </text>
+
             </g>
           ))}
         </g>
