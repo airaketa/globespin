@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { geoOrthographic, geoPath } from 'd3-geo'
+import { geoOrthographic, GeoPath, geoPath } from 'd3-geo'
 import { feature } from 'topojson-client'
 import { Feature, FeatureCollection, Geometry } from 'geojson'
 import './WorldMap.scss'
@@ -9,8 +9,12 @@ import AnimationFrame from '../../hooks/AnimationFrame'
 
 const uuid = require('react-uuid')
 
+const canvas = document.createElement('canvas');
+const context = canvas.getContext('2d');
+
 const height: number = 800
 const width: number = 800
+const minCountryTitleArea = 250
 
 const initRotation: number = 0
 
@@ -70,6 +74,27 @@ const WorldMap = () => {
     return newRotation
   }
 
+  function renderCountryName(path : GeoPath, d : never, name: string) {
+    if (path.measure(d) > minCountryTitleArea)
+    {
+      let coordinates = path.centroid(d)
+      let textWidth = context?.measureText(name).width
+      return (
+        <text
+          className="country-name"
+          key={`path-${uuid()}`}
+          x={`${coordinates[0] - (textWidth ? textWidth / 2 : 0)}`}
+          y={`${coordinates[1]}`}
+        >
+          {name}
+        </text>
+      )
+    }
+    else
+      return (null)
+  }
+
+  let path = geoPath().projection(projection)
   return (
     <>
       <svg
@@ -88,12 +113,12 @@ const WorldMap = () => {
               <path
                 className="country"
                 key={`path-${uuid()}`}
-                d={geoPath().projection(projection)(d) as string}
+                d={path(d) as string}
                 fill={`rgba(38,50,56,${(1 / (geographies ? geographies.length : 0)) * i})`}
                 stroke="aliceblue"
                 strokeWidth={0.5}
               />
-
+              {renderCountryName(path, d, geographies[i].properties!.name)}
             </g>
           ))}
         </g>
